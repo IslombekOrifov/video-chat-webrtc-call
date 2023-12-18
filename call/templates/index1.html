@@ -132,7 +132,7 @@
     <script>
         let userName = "{{request.user.username}}";
         
-        let admin = "{% if request.user.is_superuser %}admin{% else %}user{% endif %}"
+        let admin = "{% if request.user.is_translator %}translator{% elif request.user.is_lawyer %}lawyer{% else %}user{% endif %}"
         myName = userName;
         document.getElementById("userName").style.display = "none";
         document.getElementById("call").style.display = "block";

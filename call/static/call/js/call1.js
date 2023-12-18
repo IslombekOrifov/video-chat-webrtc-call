@@ -74,7 +74,7 @@ function connectSocket() {
     let ws_scheme = window.location.protocol == "https:" ? "wss://" : "ws://";
     console.log(ws_scheme);
     let url_for_back = ws_scheme + window.location.host + '/ws/call/' + myName + "/"
-    if (admin==='admin') {
+    if (admin!=='user') {
         url_for_back = ws_scheme + window.location.host + '/ws/call/' + myName + "/" + admin + "/" 
     }
     callSocket = new WebSocket(url_for_back);
@@ -514,8 +514,17 @@ function updateGridLayout() {
 
 function handleRemoteStreamRemoved(event) {
     console.log('Remote stream removed. Event: ', event);
-    remoteVideo.srcObject = null;
-    localVideo.srcObject = null;
+
+    // Identify the removed stream ID
+    const removedStreamId = event.stream.id;
+
+    // Find the corresponding video element and remove it
+    const removedVideo = document.getElementById('remoteVideo' + removedStreamId);
+    if (removedVideo) {
+        removedVideo.parentNode.removeChild(removedVideo);
+        delete remoteVideos[removedStreamId];
+        updateGridLayout(); // Update the layout after removal
+    }
 }
 
 window.onbeforeunload = function () {

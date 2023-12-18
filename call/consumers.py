@@ -1,6 +1,7 @@
 # call/consumers.py
 import json
 from asgiref.sync import async_to_sync
+
 from channels.generic.websocket import WebsocketConsumer
 from channels.layers import get_channel_layer
 from channels.db import database_sync_to_async
@@ -13,22 +14,35 @@ class CallConsumer(WebsocketConsumer):
     groups_info = {}
     def connect(self):
         self.accept()
-        if self.scope['url_route']['kwargs'].get('is_admin', False):
-            ActiveUser.objects.get_or_create(username=f"{self.scope['url_route']['kwargs']['username']}", is_admin=True)
-            self.notify_other_users_disconnected()
+        admin =  self.scope['url_route']['kwargs'].get('not_user', False)
+        if (admin and admin == 'translator'):
+            self.main_user = self.scope['url_route']['kwargs']['username']
+            ActiveUser.objects.get_or_create(username=f"{self.scope['url_route']['kwargs']['username']}", is_translator=True)
+            self.notify_translator_disconnected()
+        elif (admin and admin == 'lawyer'):
+            ActiveUser.objects.get_or_create(username=f"{self.scope['url_route']['kwargs']['username']}", is_lawyer=True)
+            self.notify_lawyer_disconnected()
         else:
             ActiveUser.objects.get_or_create(username=f"{self.scope['url_route']['kwargs']['username']}")
+        
+        
+        # filtering sending active users data for each users
+        active_translators = ActiveUser.objects.filter(is_translator=True).values_list('username', flat=True)
+        active_lawyers = ActiveUser.objects.filter(is_lawyer=True).values_list('username', flat=True)
+        active_data = (list(active_lawyers) if self.scope['url_route']['kwargs'].get('not_user', False) and self.scope['url_route']['kwargs'].get('not_user') == 'translator' else
+          [] if self.scope['url_route']['kwargs'].get('not_user', False) and self.scope['url_route']['kwargs'].get('not_user') == 'lawyer' else
+          list(active_translators))
+
+        print(CallConsumer.groups_info)
         # response to client, that we are connected.
-        # active_admins = ActiveUser.objects.filter(is_admin=True).values_list('username', flat=True)
-        active_admins = ActiveUser.objects.all().values_list('username', flat=True)
         self.send(text_data=json.dumps({
             'type': 'connection',
             'data': {
                 'message': "Connected",
-                'active_admins': list(active_admins),
-                # 'active_admins': [] if self.scope['url_route']['kwargs'].get('is_admin', False) else list(active_admins),
+                'active_admins': active_data,
             }
         }))
+
 
     def disconnect(self, close_code):
         # Leave room group
@@ -36,8 +50,33 @@ class CallConsumer(WebsocketConsumer):
             self.my_name,
             self.channel_name
         )
-        ActiveUser.objects.filter(username=self.my_name).delete()
-        self.notify_other_users_disconnected()
+        
+        print(CallConsumer.groups_info)
+        if hasattr(self, 'main_user'):
+            print()
+            print('main_user')
+            if CallConsumer.groups_info.get(self.main_user, False):
+                print()
+                print('main_user goup info')
+                if CallConsumer.groups_info[self.main_user].get('second_user', False) == self.my_name:
+                    print()
+                    print('second user')
+                    if CallConsumer.groups_info[self.main_user].get('third_user', False):
+                        CallConsumer.groups_info[self.main_user]['second_user'] == CallConsumer.groups_info[self.main_user]['third_user']
+                        CallConsumer.groups_info[self.main_user].pop('third_user')
+                    else:
+                        CallConsumer.groups_info[self.main_user].pop('second_user')
+                elif CallConsumer.groups_info[self.main_user].get('third_user', False) == self.my_name:
+                    CallConsumer.groups_info[self.main_user].pop('third_user')
+                
+        user = ActiveUser.objects.filter(username=self.my_name).last()
+        if user.is_translator:
+            user.delete()
+            self.notify_translator_disconnected()
+        if user.is_lawyer:
+            user.delete()
+            self.notify_lawyer_disconnected()
+        
         
         
     # Receive message from client WebSocket
@@ -60,7 +99,8 @@ class CallConsumer(WebsocketConsumer):
         if eventType == 'call':
             name = text_data_json['data']['name']
             print(self.my_name, "is calling", name);
- 
+            if not self.scope['url_route']['kwargs'].get('not_user', False):
+                self.main_user = name
             async_to_sync(self.channel_layer.group_send)(
                 name,
                 {
@@ -102,28 +142,55 @@ class CallConsumer(WebsocketConsumer):
                     }
                 }
             )
-            if CallConsumer.groups_info.get(caller, False) and not CallConsumer.groups_info[caller].get('third_user', False):
-                CallConsumer.groups_info[caller]['third_user'] = {'username': caller_room, 'rtcMessage': text_data_json['data']['rtcMessage']}
-                s_user_username = CallConsumer.groups_info[caller]['second_user']['username']
-                s_user_rtc = CallConsumer.groups_info[caller]['second_user']['rtcMessage']
+            if self.scope['url_route']['kwargs'].get('not_user', False) == 'translator':
+                self.main_user = caller_room
+                if CallConsumer.groups_info.get(caller_room, False) and not CallConsumer.groups_info[caller_room].get('third_user', False):
+                    CallConsumer.groups_info[caller_room]['third_user'] = caller
+                    s_user_username = CallConsumer.groups_info[caller]['second_user']
 
-                async_to_sync(self.channel_layer.group_add)(caller_room, s_user_username)
-                async_to_sync(self.channel_layer.group_add)(s_user_username, caller_room)
+                    async_to_sync(self.channel_layer.group_add)(caller, s_user_username)
+                    async_to_sync(self.channel_layer.group_add)(s_user_username, caller)
 
-                async_to_sync(self.channel_layer.group_send)(
-                    s_user_username,
-                    {
-                        'type': 'new_call',
-                        'data': {
-                            'to_user': caller_room
+                    async_to_sync(self.channel_layer.group_send)(
+                        s_user_username,
+                        {
+                            'type': 'new_call',
+                            'data': {
+                                'to_user': caller
+                            }
                         }
-                    }
-                )
-                print('Third user worked')
-            elif not self.groups_info.get(caller, False):
-                CallConsumer.groups_info[caller] = {}
-                CallConsumer.groups_info[caller]['second_user'] = {'username': caller_room, 'rtcMessage': text_data_json['data']['rtcMessage']}
-                
+                    )
+                    print('Third user worked')
+                elif not self.groups_info.get(caller_room, False):
+                    CallConsumer.groups_info[self.my_name] = {}
+                    CallConsumer.groups_info[self.my_name]['second_user'] = caller
+                   
+                    
+            elif self.scope['url_route']['kwargs'].get('not_user', False) == 'lawyer':
+                if hasattr(self, 'main_user'):
+                    pass
+                else: self.main_user = caller
+                if CallConsumer.groups_info.get(self.main_user, False) and not CallConsumer.groups_info[self.main_user].get('third_user', False):
+                    CallConsumer.groups_info[self.main_user]['third_user'] = caller_room
+                    s_user_username = CallConsumer.groups_info[self.main_user]['second_user']
+
+                    async_to_sync(self.channel_layer.group_add)(caller_room, s_user_username)
+                    async_to_sync(self.channel_layer.group_add)(s_user_username, caller_room)
+
+                    async_to_sync(self.channel_layer.group_send)(
+                        s_user_username,
+                        {
+                            'type': 'new_call',
+                            'data': {
+                                'to_user': caller_room
+                            }
+                        }
+                    )
+                    print('Third user worked')
+                elif not self.groups_info.get(self.main_user, False):
+                    CallConsumer.groups_info[self.main_user] = {}
+                    CallConsumer.groups_info[self.main_user]['second_user'] = caller_room
+                    
         
         if eventType == 'extra_answer_call':
             caller = text_data_json['data']['caller']
@@ -265,6 +332,36 @@ class CallConsumer(WebsocketConsumer):
                     'type': 'admin_disconnected',
                     'data': {
                         'active_admins': list(active_admins)
+                    }
+                }
+            )
+            
+    def notify_translator_disconnected(self):
+        users = ActiveUser.objects.all()
+        active_translators = users.filter(is_translator=True).values_list('username', flat=True)
+        active_users = users.filter(is_admin=False, is_translator=False, is_lawyer=False).values_list('username', flat=True)
+        for user in active_users:
+            async_to_sync(self.channel_layer.group_send)(
+                user,
+                {
+                    'type': 'admin_disconnected',
+                    'data': {
+                        'active_admins': list(active_translators)
+                    }
+                }
+            )
+            
+    def notify_lawyer_disconnected(self):
+        users = ActiveUser.objects.all()
+        active_lawyers = users.filter(is_lawyer=True).values_list('username', flat=True)
+        active_translators = users.filter(is_translator=True).values_list('username', flat=True)
+        for user in active_translators:
+            async_to_sync(self.channel_layer.group_send)(
+                user,
+                {
+                    'type': 'admin_disconnected',
+                    'data': {
+                        'active_admins': list(active_lawyers)
                     }
                 }
             )
