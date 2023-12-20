@@ -57,3 +57,34 @@
 #errorMessage {
   color: red;
 }
+
+
+#remoteVideoDiv {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+}
+#remoteVideoDiv video {
+  width: 400px;
+  height: 400px;
+  border: 1px solid red;
+  box-shadow: 10px 10px 10px gray;
+}
+#remoteVideoGrid {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  align-items: center;
+}
+#remoteVideoGrid video {
+  width: 40%;
+  height: 20vh;
+  border: 2px solid red;
+}
+
+#localVideo {
+  width: 150px;
+  height: 150px;
+}
