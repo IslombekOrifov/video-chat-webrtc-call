@@ -50,24 +50,81 @@ class CallConsumer(WebsocketConsumer):
             self.my_name,
             self.channel_name
         )
-        
-        print(CallConsumer.groups_info)
         if hasattr(self, 'main_user'):
-            print()
-            print('main_user')
             if CallConsumer.groups_info.get(self.main_user, False):
-                print()
-                print('main_user goup info')
-                if CallConsumer.groups_info[self.main_user].get('second_user', False) == self.my_name:
-                    print()
-                    print('second user')
+                if self.main_user == self.my_name:
+                    async_to_sync(self.channel_layer.group_discard)(
+                        self.my_name,
+                        CallConsumer.groups_info[self.main_user].get('second_user')
+                    )
+                    async_to_sync(self.channel_layer.group_discard)(
+                        CallConsumer.groups_info[self.main_user].get('second_user'),
+                        self.my_name
+                    )
+                    async_to_sync(self.channel_layer.group_discard)(
+                        self.my_name,
+                        CallConsumer.groups_info[self.main_user].get('third_user')
+                    )
+                    async_to_sync(self.channel_layer.group_discard)(
+                        CallConsumer.groups_info[self.main_user].get('third_user'),
+                        self.my_name
+                    )
+                    async_to_sync(self.channel_layer.group_discard)(
+                        CallConsumer.groups_info[self.main_user].get('third_user'),
+                        CallConsumer.groups_info[self.main_user].get('second_user')
+                    )
+                    async_to_sync(self.channel_layer.group_discard)(
+                        CallConsumer.groups_info[self.main_user].get('second_user'),
+                        CallConsumer.groups_info[self.main_user].get('third_user')
+                    )
+                elif CallConsumer.groups_info[self.main_user].get('second_user', False) == self.my_name:
                     if CallConsumer.groups_info[self.main_user].get('third_user', False):
+                        async_to_sync(self.channel_layer.group_discard)(
+                            self.my_name,
+                            self.main_user
+                        )
+                        async_to_sync(self.channel_layer.group_discard)(
+                            self.main_user,
+                            self.my_name
+                        )
+                        async_to_sync(self.channel_layer.group_discard)(
+                            self.my_name,
+                            CallConsumer.groups_info[self.main_user].get('third_user')
+                        )
+                        async_to_sync(self.channel_layer.group_discard)(
+                            CallConsumer.groups_info[self.main_user].get('third_user'),
+                            self.my_name
+                        )
                         CallConsumer.groups_info[self.main_user]['second_user'] == CallConsumer.groups_info[self.main_user]['third_user']
                         CallConsumer.groups_info[self.main_user].pop('third_user')
                     else:
                         CallConsumer.groups_info[self.main_user].pop('second_user')
+                        async_to_sync(self.channel_layer.group_discard)(
+                            self.my_name,
+                            self.main_user
+                        )
+                        async_to_sync(self.channel_layer.group_discard)(
+                            self.main_user,
+                            self.my_name
+                        )
                 elif CallConsumer.groups_info[self.main_user].get('third_user', False) == self.my_name:
                     CallConsumer.groups_info[self.main_user].pop('third_user')
+                    async_to_sync(self.channel_layer.group_discard)(
+                        self.my_name,
+                        self.main_user
+                    )
+                    async_to_sync(self.channel_layer.group_discard)(
+                        self.main_user,
+                        self.my_name
+                    )
+                    async_to_sync(self.channel_layer.group_discard)(
+                        self.my_name,
+                        CallConsumer.groups_info[self.main_user].get('second_user')
+                    )
+                    async_to_sync(self.channel_layer.group_discard)(
+                        CallConsumer.groups_info[self.main_user].get('second_user'),
+                        self.my_name
+                    )
                 
         user = ActiveUser.objects.filter(username=self.my_name).last()
         if user.is_translator:
