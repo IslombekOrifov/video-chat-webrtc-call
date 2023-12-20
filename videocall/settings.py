@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-9ndce&l@l+tiq0&hpd^9p!xki()!dka-l+ad+$cn)48v-%(ybr
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['e7f1-178-218-200-199.ngrok-free.app', "rtcvideocall.pythonanywhere.com", "django-videocall.herokuapp.com", "localhost", "127.0.0.1"]
+ALLOWED_HOSTS = ['0842-178-218-200-199.ngrok-free.app', "rtcvideocall.pythonanywhere.com", "django-videocall.herokuapp.com", "localhost", "127.0.0.1"]
 
 
 # Application definition
