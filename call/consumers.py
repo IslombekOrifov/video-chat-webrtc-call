@@ -53,30 +53,52 @@ class CallConsumer(WebsocketConsumer):
         if hasattr(self, 'main_user'):
             if CallConsumer.groups_info.get(self.main_user, False):
                 if self.main_user == self.my_name:
-                    async_to_sync(self.channel_layer.group_discard)(
-                        self.my_name,
-                        CallConsumer.groups_info[self.main_user].get('second_user')
-                    )
-                    async_to_sync(self.channel_layer.group_discard)(
-                        CallConsumer.groups_info[self.main_user].get('second_user'),
-                        self.my_name
-                    )
-                    async_to_sync(self.channel_layer.group_discard)(
-                        self.my_name,
-                        CallConsumer.groups_info[self.main_user].get('third_user')
-                    )
-                    async_to_sync(self.channel_layer.group_discard)(
-                        CallConsumer.groups_info[self.main_user].get('third_user'),
-                        self.my_name
-                    )
-                    async_to_sync(self.channel_layer.group_discard)(
-                        CallConsumer.groups_info[self.main_user].get('third_user'),
-                        CallConsumer.groups_info[self.main_user].get('second_user')
-                    )
-                    async_to_sync(self.channel_layer.group_discard)(
-                        CallConsumer.groups_info[self.main_user].get('second_user'),
-                        CallConsumer.groups_info[self.main_user].get('third_user')
-                    )
+                    second_user = CallConsumer.groups_info[self.main_user].get('second_user', False)
+                    third_user = CallConsumer.groups_info[self.main_user].get('third_user', False)
+                    if second_user and third_user:
+                        async_to_sync(self.channel_layer.group_discard)(
+                            self.my_name,
+                            second_user
+                        )
+                        async_to_sync(self.channel_layer.group_discard)(
+                            second_user,
+                            self.my_name
+                        )
+                        async_to_sync(self.channel_layer.group_discard)(
+                            self.my_name,
+                            third_user
+                        )
+                        async_to_sync(self.channel_layer.group_discard)(
+                            third_user,
+                            self.my_name
+                        )
+                        async_to_sync(self.channel_layer.group_discard)(
+                            third_user,
+                            second_user
+                        )
+                        async_to_sync(self.channel_layer.group_discard)(
+                            second_user,
+                            third_user
+                        )
+                    elif second_user:
+                        async_to_sync(self.channel_layer.group_discard)(
+                            self.my_name,
+                            second_user
+                        )
+                        async_to_sync(self.channel_layer.group_discard)(
+                            second_user,
+                            self.my_name
+                        )
+                    elif third_user:
+                        async_to_sync(self.channel_layer.group_discard)(
+                            self.my_name,
+                            third_user
+                        )
+                        async_to_sync(self.channel_layer.group_discard)(
+                            third_user,
+                            self.my_name
+                        )
+                    CallConsumer.groups_info.pop(self.main_user)
                 elif CallConsumer.groups_info[self.main_user].get('second_user', False) == self.my_name:
                     if CallConsumer.groups_info[self.main_user].get('third_user', False):
                         async_to_sync(self.channel_layer.group_discard)(
